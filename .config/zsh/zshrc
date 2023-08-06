@@ -1,0 +1,35 @@
+HISTFILE=${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history
+
+export PATH="$HOME/bin:$HOME/.deno/bin:/usr/local/bin:/usr/local/sbin:$PATH"
+export XDG_CONFIG_HOME=$HOME/.config
+export ZSH_TMUX_CONFIG=$XDG_CONFIG_HOME/tmux/tmux.conf
+
+# Path to your oh-my-zsh installation.
+export ZSH="$HOME/.oh-my-zsh"
+
+ZSH_THEME="af-magic"
+HIST_STAMPS="yyyy-mm-dd"
+
+plugins=(vscode	deno tmux)
+
+if type brew &>/dev/null; then
+  FPATH=$(brew --prefix)/share/zsh/site-functions:$FPATH
+
+  autoload -Uz compinit
+  compinit
+fi
+
+source $ZSH/oh-my-zsh.sh
+
+export EDITOR='nvim'
+
+alias chrome="open -a 'Google Chrome'"
+alias bsync="browser-sync . -w -f . -b \"google chrome\" --no-notify"
+alias vi=nvim
+alias vim=nvim
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+alias nvm="unalias nvm; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; nvm $@"
+
+alias dotfiles='/usr/bin/git --git-dir=$HOME/.dotfiles.git/ --work-tree=$HOME'
