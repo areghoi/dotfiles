@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 
 # Handle verbose flag
-VERBOSE=0
-if [[ "$1" == "-verbose" ]]; then
-    VERBOSE=1
-fi
+INIT_DEBUG_OUT=0
 debug() {
-    if [[ $VERBOSE == 1 ]]; then
-        echo "$1"
+    if [[ $INIT_DEBUG_OUT == 1 ]]; then
+        echo "[DEBUG] $1"
     fi
 }
+
+if [[ "$1" == "-verbose" ]]; then
+  INIT_DEBUG_OUT=1
+  debug "verbose out active"
+fi
 
 # ~/.macos — https://mths.be/macos
 
@@ -30,9 +32,6 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 debug "Disable the sound effects on boot"
 sudo nvram SystemAudioVolume=" "
 
-debug "Disable transparency in the menu bar and elsewhere on Yosemite"
-defaults write com.apple.universalaccess reduceTransparency -bool true
-
 debug "Set highlight color to green"
 defaults write NSGlobalDomain AppleHighlightColor -string "0.764700 0.976500 0.568600"
 
@@ -40,8 +39,8 @@ debug "Set sidebar icon size to medium"
 defaults write NSGlobalDomain NSTableViewDefaultSizeMode -int 2
 
 debug "Always show scrollbars"
+# Possible values: `WhenScrolling`, `Automatic` and `Always`
 defaults write NSGlobalDomain AppleShowScrollBars -string "Always"
-debug "Possible values: `WhenScrolling`, `Automatic` and `Always`"
 
 debug "Disable the over-the-top focus ring animation"
 defaults write NSGlobalDomain NSUseAnimatedFocusRing -bool false
@@ -69,7 +68,8 @@ defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true
 debug "Disable the “Are you sure you want to open this application?” dialog"
 defaults write com.apple.LaunchServices LSQuarantine -bool false
 
-debug "Remove duplicates in the “Open With” menu (also see `lscleanup` alias)"
+debug "Remove duplicates in the “Open With” menu"
+# also see `lscleanup` alias
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user
 
 debug "Display ASCII control characters using caret notation in standard text views"
@@ -128,12 +128,6 @@ debug "Enable full keyboard access for all controls"
 # (e.g. enable Tab in modal dialogs)
 defaults write NSGlobalDomain AppleKeyboardUIMode -int 3
 
-debug "Use scroll gesture with the Ctrl (^) modifier key to zoom"
-defaults write com.apple.universalaccess closeViewScrollWheelToggle -bool true
-defaults write com.apple.universalaccess HIDScrollZoomModifierMask -int 262144
-debug "Follow the keyboard focus while zoomed in"
-defaults write com.apple.universalaccess closeViewZoomFollowsFocus -bool true
-
 debug "Disable press-and-hold for keys in favor of key repeat"
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
@@ -152,8 +146,9 @@ defaults write NSGlobalDomain AppleMetricUnits -bool true
 debug "Show language menu in the top right corner of the boot screen"
 sudo defaults write /Library/Preferences/com.apple.loginwindow showInputMenu -bool true
 
-debug "Set the timezone; see `sudo systemsetup -listtimezones` for other values"
-sudo systemsetup -settimezone "Europe/Brussels" > /dev/null
+#debug "Set the timezone"
+# see `sudo systemsetup -listtimezones` for other values
+#sudo systemsetup -settimezone "Europe/Zurich" > /dev/null
 
 debug "Stop iTunes from responding to the keyboard media keys"
 launchctl unload -w /System/Library/LaunchAgents/com.apple.rcd.plist 2> /dev/null
@@ -171,14 +166,11 @@ sudo pmset -a autorestart 1
 debug "Restart automatically if the computer freezes"
 sudo systemsetup -setrestartfreeze on
 
-debug "Sleep the display after 15 minutes"
-sudo pmset -a displaysleep 15
+debug "Sleep the display after 15 minutes & disable machine sleep while charging"
+sudo pmset -c displaysleep 15 sleep 0
 
-debug "Disable machine sleep while charging"
-sudo pmset -c sleep 0
-
-debug "Set machine sleep to 5 minutes on battery"
-sudo pmset -b sleep 5
+debug "Sleep the display after 3 & set machine sleep to 5 minutes on battery"
+sudo pmset -b displaysleep 3 sleep 5
 
 debug "Set standby delay to 24 hours (default is 1 hour)"
 sudo pmset -a standbydelay 86400
@@ -192,12 +184,14 @@ debug "Hibernation mode: Disable hibernation"
 #    power failure.
 sudo pmset -a hibernatemode 0
 
-debug "Remove the sleep image file to save disk space"
-sudo rm /private/var/vm/sleepimage
-debug "Create a zero-byte file instead…"
-sudo touch /private/var/vm/sleepimage
-debug "…and make sure it can’t be rewritten"
-sudo chflags uchg /private/var/vm/sleepimage
+if [ -s /private/var/vm/sleepimage ]; then
+  debug "Remove the sleep image file to save disk space"
+  sudo rm /private/var/vm/sleepimage
+  debug "Create a zero-byte file instead…"
+  sudo touch /private/var/vm/sleepimage
+  debug "…and make sure it can’t be rewritten"
+  sudo chflags uchg /private/var/vm/sleepimage
+fi
 
 ###############################################################################
 # Screen                                                                      #
@@ -207,10 +201,11 @@ debug "Require password immediately after sleep or screen saver begins"
 defaults write com.apple.screensaver askForPassword -int 1
 defaults write com.apple.screensaver askForPasswordDelay -int 0
 
-debug "Save screenshots to the desktop"
+debug "Save screenshots to ~/Downloads"
 defaults write com.apple.screencapture location -string "${HOME}/Downloads"
 
-debug "Save screenshots in PNG format (other options: BMP, GIF, JPG, PDF, TIFF)"
+debug "Save screenshots in PNG format"
+# other options: BMP, GIF, JPG, PDF, TIFF
 defaults write com.apple.screencapture type -string "png"
 
 debug "Disable shadow in screenshots"
@@ -322,7 +317,7 @@ debug "Enable AirDrop over Ethernet and on unsupported Macs running Lion"
 defaults write com.apple.NetworkBrowser BrowseAllInterfaces -bool true
 
 debug "Show the ~/Library folder"
-chflags nohidden ~/Library && xattr -d com.apple.FinderInfo ~/Library
+chflags nohidden ~/Library && xattr -d com.apple.FinderInfo ~/Library > /dev/null
 
 debug "Show the /Volumes folder"
 sudo chflags nohidden /Volumes
@@ -443,7 +438,7 @@ defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebK
 debug "Show the full URL in the address bar (note: this still hides the scheme)"
 defaults write com.apple.Safari ShowFullURLInSmartSearchField -bool true
 
-debug "Set Safari’s home page to `about:blank` for faster loading"
+debug "Set Safari’s home page to 'about:blank' for faster loading"
 defaults write com.apple.Safari HomePage -string "about:blank"
 
 debug "Prevent Safari from opening ‘safe’ files automatically after downloading"
@@ -525,7 +520,7 @@ debug "Disable send and reply animations in Mail.app"
 defaults write com.apple.mail DisableReplyAnimations -bool true
 defaults write com.apple.mail DisableSendAnimations -bool true
 
-debug "Copy email addresses as `foo@example.com` instead of `Foo Bar <foo@example.com>` in Mail.app"
+debug "Copy email addresses as 'foo@example.com' instead of 'Foo Bar <foo@example.com>'' in Mail.app"
 defaults write com.apple.mail AddressesIncludeNameOnPasteboard -bool false
 
 debug "Add the keyboard shortcut ⌘ + Enter to send an email in Mail.app"
@@ -541,9 +536,9 @@ defaults write com.apple.mail SpellCheckingBehavior -string "NoSpellCheckingEnab
 # Spotlight                                                                   #
 ###############################################################################
 
-debug "Disable Spotlight indexing for any volume that gets mounted and has not yet been indexed before."
+#debug "Disable Spotlight indexing for any volume that gets mounted and has not yet been indexed before."
 # Use `sudo mdutil -i off "/Volumes/foo"` to stop indexing any volume.
-sudo defaults write /.Spotlight-V100/VolumeConfiguration Exclusions -array "/Volumes"
+#sudo defaults write /.Spotlight-V100/VolumeConfiguration Exclusions -array "/Volumes"
 debug "Change indexing order and disable some search results"
 # Yosemite-specific search results (remove them if you are using macOS 10.9 or older):
 # 	MENU_DEFINITION
@@ -596,23 +591,23 @@ defaults write com.apple.terminal SecureKeyboardEntry -bool true
 debug "Disable the annoying line marks"
 defaults write com.apple.Terminal ShowLineMarks -int 0
 
-# Don’t display the annoying prompt when quitting iTerm
+debug "Don’t display the annoying prompt when quitting iTerm"
 defaults write com.googlecode.iterm2 PromptOnQuit -bool false
 
 ###############################################################################
 # Activity Monitor                                                            #
 ###############################################################################
 
-# Show the main window when launching Activity Monitor
+debug "Show the main window when launching Activity Monitor"
 defaults write com.apple.ActivityMonitor OpenMainWindow -bool true
 
-# Visualize CPU usage in the Activity Monitor Dock icon
+debug "Visualize CPU usage in the Activity Monitor Dock icon"
 defaults write com.apple.ActivityMonitor IconType -int 5
 
-# Show all processes in Activity Monitor
+debug "Show all processes in Activity Monitor"
 defaults write com.apple.ActivityMonitor ShowCategory -int 0
 
-# Sort Activity Monitor results by CPU usage
+debug "Sort Activity Monitor results by CPU usage"
 defaults write com.apple.ActivityMonitor SortColumn -string "CPUUsage"
 defaults write com.apple.ActivityMonitor SortDirection -int 0
 
@@ -620,83 +615,83 @@ defaults write com.apple.ActivityMonitor SortDirection -int 0
 # Address Book, Dashboard, iCal, TextEdit, and Disk Utility                   #
 ###############################################################################
 
-# Enable the debug menu in Address Book
+debug "Enable the debug menu in Address Book"
 defaults write com.apple.addressbook ABShowDebugMenu -bool true
 
-# Enable Dashboard dev mode (allows keeping widgets on the desktop)
+debug "Enable Dashboard dev mode (allows keeping widgets on the desktop)"
 defaults write com.apple.dashboard devmode -bool true
 
-# Enable the debug menu in iCal (pre-10.8)
+debug "Enable the debug menu in iCal (pre-10.8)"
 defaults write com.apple.iCal IncludeDebugMenu -bool true
 
-# Use plain text mode for new TextEdit documents
+debug "Use plain text mode for new TextEdit documents"
 defaults write com.apple.TextEdit RichText -int 0
-# Open and save files as UTF-8 in TextEdit
+debug "Open and save files as UTF-8 in TextEdit"
 defaults write com.apple.TextEdit PlainTextEncoding -int 4
 defaults write com.apple.TextEdit PlainTextEncodingForWrite -int 4
 
-# Enable the debug menu in Disk Utility
+debug "Enable the debug menu in Disk Utility"
 defaults write com.apple.DiskUtility DUDebugMenuEnabled -bool true
 defaults write com.apple.DiskUtility advanced-image-options -bool true
 
-# Auto-play videos when opened with QuickTime Player
+debug "Auto-play videos when opened with QuickTime Player"
 defaults write com.apple.QuickTimePlayerX MGPlayMovieOnOpen -bool true
 
 ###############################################################################
 # Mac App Store                                                               #
 ###############################################################################
 
-# Enable the WebKit Developer Tools in the Mac App Store
+debug "Enable the WebKit Developer Tools in the Mac App Store"
 defaults write com.apple.appstore WebKitDeveloperExtras -bool true
 
-# Enable Debug Menu in the Mac App Store
+debug "Enable Debug Menu in the Mac App Store"
 defaults write com.apple.appstore ShowDebugMenu -bool true
 
-# Enable the automatic update check
+debug "Enable the automatic update check"
 defaults write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
 
-# Check for software updates daily, not just once per week
+debug "Check for software updates daily, not just once per week"
 defaults write com.apple.SoftwareUpdate ScheduleFrequency -int 1
 
-# Download newly available updates in background
+debug "Download newly available updates in background"
 defaults write com.apple.SoftwareUpdate AutomaticDownload -int 1
 
-# Install System data files & security updates
+debug "Install System data files & security updates"
 defaults write com.apple.SoftwareUpdate CriticalUpdateInstall -int 1
 
-# Automatically download apps purchased on other Macs
+debug "Automatically download apps purchased on other Macs"
 defaults write com.apple.SoftwareUpdate ConfigDataInstall -int 1
 
-# Turn on app auto-update
+debug "Turn on app auto-update"
 defaults write com.apple.commerce AutoUpdate -bool true
 
-# Allow the App Store to reboot machine on macOS updates
+debug "Allow the App Store to reboot machine on macOS updates"
 defaults write com.apple.commerce AutoUpdateRestartRequired -bool true
 
 ###############################################################################
 # Photos                                                                      #
 ###############################################################################
 
-# Prevent Photos from opening automatically when devices are plugged in
+debug "Prevent Photos from opening automatically when devices are plugged in"
 defaults -currentHost write com.apple.ImageCapture disableHotPlug -bool true
 
 ###############################################################################
 # Google Chrome & Google Chrome Canary                                        #
 ###############################################################################
 
-# Disable the all too sensitive backswipe on trackpads
+debug "Disable the all too sensitive backswipe on trackpads"
 defaults write com.google.Chrome AppleEnableSwipeNavigateWithScrolls -bool false
 defaults write com.google.Chrome.canary AppleEnableSwipeNavigateWithScrolls -bool false
 
-# Disable the all too sensitive backswipe on Magic Mouse
+debug "Disable the all too sensitive backswipe on Magic Mouse"
 defaults write com.google.Chrome AppleEnableMouseSwipeNavigateWithScrolls -bool false
 defaults write com.google.Chrome.canary AppleEnableMouseSwipeNavigateWithScrolls -bool false
 
-# Use the system-native print preview dialog
+debug "Use the system-native print preview dialog"
 defaults write com.google.Chrome DisablePrintPreview -bool true
 defaults write com.google.Chrome.canary DisablePrintPreview -bool true
 
-# Expand the print dialog by default
+debug "Expand the print dialog by default"
 defaults write com.google.Chrome PMPrintingExpandedStateForPrint2 -bool true
 defaults write com.google.Chrome.canary PMPrintingExpandedStateForPrint2 -bool true
 
@@ -704,7 +699,7 @@ defaults write com.google.Chrome.canary PMPrintingExpandedStateForPrint2 -bool t
 # Sublime Text                                                                #
 ###############################################################################
 
-# Install Sublime Text settings
+debug "Install Sublime Text settings"
 cp -r .config/sublime/Preferences.sublime-settings ~/Library/Application\ Support/Sublime\ Text*/Packages/User/Preferences.sublime-settings 2> /dev/null
 
 ###############################################################################
