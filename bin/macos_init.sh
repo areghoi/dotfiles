@@ -31,6 +31,7 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
 debug "Disable the sound effects on boot"
 sudo nvram SystemAudioVolume=" "
+sudo nvram SystemStartupMute=%01
 
 debug "Set highlight color to green"
 defaults write NSGlobalDomain AppleHighlightColor -string "0.764700 0.976500 0.568600"
