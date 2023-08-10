@@ -38,3 +38,16 @@ You can disable the display of untracked files
 ```
 dotfiles config --local status.showUntrackedFiles no
 ```
+
+## Adding author data to gitconfig
+
+Globa config file already includes ´~/.config/git/user.gitconfig´.
+You can set your global user configuration there.
+
+```
+cat <<EOT >> ~/.config/git/user.gitconfig
+[user]
+  name = <name>
+  email = <email>
+EOT
+```
